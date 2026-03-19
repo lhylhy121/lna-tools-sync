@@ -1,0 +1,25 @@
+name: Sync Image to Aliyun
+on:
+  workflow_dispatch: # 支持手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Aliyun
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USERNAME }}
+          password: ${{ secrets.ALIYUN_PASSWORD }}
+
+      - name: Pull and Push
+        run: |
+          # 拉取原始镜像
+          docker pull efabless/iic-osic-tools:latest
+          
+          # 打标签（请将下面的 lna-1/iic-tools 改成你真实的阿里云路径）
+          docker tag efabless/iic-osic-tools:latest registry.cn-hangzhou.aliyuncs.com/lna-1/iic-tools:latest
+          
+          # 推送到阿里云
+          docker push registry.cn-hangzhou.aliyuncs.com/lna-1/iic-tools:latest
