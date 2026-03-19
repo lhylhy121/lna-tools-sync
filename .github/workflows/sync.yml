@@ -6,6 +6,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Maximize build space
+        # 这个步骤非常关键，因为镜像巨大，需要清理磁盘空间
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+
       - name: Login to Aliyun
         uses: docker/login-action@v3
         with:
@@ -15,29 +25,15 @@ jobs:
 
       - name: Pull and Push
         run: |
-          # 定义目标地址
+          # 1. 改用 GitHub 官方镜像库 (GHCR)，这个在 Action 里几乎不会失败
+          SOURCE_IMAGE="ghcr.io/iic-osic-tools/iic-osic-tools:latest"
+          
+          echo "Pulling from GitHub Container Registry..."
+          docker pull $SOURCE_IMAGE
+          
+          # 2. 标记为你自己的阿里云路径
           TARGET_IMAGE="${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
           
-          # 定义备用源镜像列表
-          # 1. 官方镜像 2. 社区备份 3. 备用备份
-          SOURCES=("efabless/iic-osic-tools:latest" "proppy/iic-osic-tools:latest" "dkisic/iic-osic-tools:latest")
-          
-          SUCCESS=false
-          for SOURCE in "${SOURCES[@]}"; do
-            echo "Attempting to pull from $SOURCE..."
-            if docker pull $SOURCE; then
-              echo "Successfully pulled $SOURCE"
-              docker tag $SOURCE $TARGET_IMAGE
-              echo "Pushing to Aliyun..."
-              docker push $TARGET_IMAGE
-              SUCCESS=true
-              break
-            else
-              echo "Failed to pull from $SOURCE, trying next..."
-            fi
-          done
-
-          if [ "$SUCCESS" = false ]; then
-            echo "All source images failed to pull. Please check Docker Hub status."
-            exit 1
-          fi
+          echo "Tagging and pushing to Aliyun..."
+          docker tag $SOURCE_IMAGE $TARGET_IMAGE
+          docker push $TARGET_IMAGE
