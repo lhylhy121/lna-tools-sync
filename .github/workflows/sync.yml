@@ -1,6 +1,6 @@
 name: Sync Image to Aliyun
 on:
-  workflow_dispatch: # 支持手动点击 Run 启动
+  workflow_dispatch:
 
 jobs:
   build:
@@ -9,22 +9,22 @@ jobs:
       - name: Login to Aliyun
         uses: docker/login-action@v3
         with:
-          # 使用通用的阿里云登录地址
-          registry: registry.cn-hangzhou.aliyuncs.com
+          # 直接使用你的个人实例域名登录
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
           username: ${{ secrets.ALIYUN_USERNAME }}
           password: ${{ secrets.ALIYUN_PASSWORD }}
 
       - name: Pull and Push
         run: |
-          # 1. 换成目前公开可用的社区镜像源
+          # 1. 拉取目前的公开镜像
           SOURCE_IMAGE="hpreid/iic-osic-tools:latest"
-          
-          echo "Starting to pull $SOURCE_IMAGE... This takes about 10-15 minutes."
+          echo "Pulling $SOURCE_IMAGE..."
           docker pull $SOURCE_IMAGE
           
-          # 2. 标记为你自己的阿里云路径 (请确保 crpi-xxx 那一串是你自己的公网地址)
-          TARGET_IMAGE="crpi-kuyd8b1ala7j1mc4.cn-hangzhou.personal.cr.aliyuncs.com/lna-1/lna-design1:latest"
-          
+          # 2. 标记镜像
+          TARGET_IMAGE="${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
           echo "Tagging and pushing to $TARGET_IMAGE"
           docker tag $SOURCE_IMAGE $TARGET_IMAGE
+          
+          # 3. 推送
           docker push $TARGET_IMAGE
