@@ -31,7 +31,6 @@ jobs:
           # 2. 登录阿里云 (使用你的 Secret)
           echo "${{ secrets.ALIYUN_PASSWORD }}" | skopeo login --username "${{ secrets.ALIYUN_USERNAME }}" --password-stdin ${{ secrets.ALIYUN_REGISTRY }}
 
-      - # 修正后的 sync.yml 关键部分
       - name: Sync Image using Skopeo
         run: |
           # 核心修正：使用官方 JKU 维护的镜像路径
