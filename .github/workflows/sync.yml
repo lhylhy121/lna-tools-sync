@@ -31,11 +31,17 @@ jobs:
           # 2. 登录阿里云 (使用你的 Secret)
           echo "${{ secrets.ALIYUN_PASSWORD }}" | skopeo login --username "${{ secrets.ALIYUN_USERNAME }}" --password-stdin ${{ secrets.ALIYUN_REGISTRY }}
 
+      - # 修正后的 sync.yml 关键部分
       - name: Sync Image using Skopeo
         run: |
-          # 修正后的官方路径
-          SOURCE_IMAGE="docker://ghcr.io/efabless/iic-osic-tools:latest"
+          # 核心修正：使用官方 JKU 维护的镜像路径
+          SOURCE_IMAGE="docker://ghcr.io/iic-jku/iic-osic-tools:latest"
+          
+          # 你的阿里云目标地址
           TARGET_IMAGE="docker://${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
           
-          echo "Starting robust sync..."
-          skopeo copy --command-timeout 60m $SOURCE_IMAGE $TARGET_IMAGE
+          echo "Starting sync from JKU official mirror to Aliyun..."
+          
+          # 执行同步 (增加 --src-no-creds，因为 JKU 的镜像是完全公开的)
+          skopeo copy --src-no-creds --dest-creds "${{ secrets.ALIYUN_USERNAME }}:${{ secrets.ALIYUN_PASSWORD }}" \
+          $SOURCE_IMAGE $TARGET_IMAGE
