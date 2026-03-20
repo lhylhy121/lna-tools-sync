@@ -7,7 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Maximize build space
-        # 这个步骤非常关键，因为镜像巨大，需要清理磁盘空间
         uses: easimon/maximize-build-space@v10
         with:
           root-reserve-mb: 512
@@ -16,24 +15,21 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
 
-      - name: Login to Aliyun
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.ALIYUN_REGISTRY }}
-          username: ${{ secrets.ALIYUN_USERNAME }}
-          password: ${{ secrets.ALIYUN_PASSWORD }}
-
-      - name: Pull and Push
+      - name: Install Skopeo
         run: |
-          # 1. 改用 GitHub 官方镜像库 (GHCR)，这个在 Action 里几乎不会失败
-          SOURCE_IMAGE="ghcr.io/iic-osic-tools/iic-osic-tools:latest"
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Sync Image using Skopeo
+        run: |
+          # 设定镜像地址
+          SOURCE_IMAGE="docker://docker.io/efabless/iic-osic-tools:latest"
+          TARGET_IMAGE="docker://${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
           
-          echo "Pulling from GitHub Container Registry..."
-          docker pull $SOURCE_IMAGE
+          echo "Starting professional sync from $SOURCE_IMAGE to $TARGET_IMAGE"
           
-          # 2. 标记为你自己的阿里云路径
-          TARGET_IMAGE="${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
-          
-          echo "Tagging and pushing to Aliyun..."
-          docker tag $SOURCE_IMAGE $TARGET_IMAGE
-          docker push $TARGET_IMAGE
+          # 使用 skopeo 直接搬运，无需 docker pull
+          # --src-no-creds 表示源镜像不需要登录
+          # --dest-creds 使用你的阿里云账号密码
+          skopeo copy --src-no-creds --dest-creds "${{ secrets.ALIYUN_USERNAME }}:${{ secrets.ALIYUN_PASSWORD }}" \
+          $SOURCE_IMAGE $TARGET_IMAGE
