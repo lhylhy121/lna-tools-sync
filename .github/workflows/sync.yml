@@ -5,10 +5,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # 开启读取 GitHub 库的权限
+
     steps:
-      - name: Maximize Disk Space (Aggressive Clean)
+      - name: Maximize Disk Space
         run: |
-          # 必须彻底清理，否则 30GB 的镜像解压会爆磁盘
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
@@ -20,19 +23,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y skopeo
 
+      - name: Login to Registries
+        run: |
+          # 1. 登录 GitHub 官方库 (使用内置 Token)
+          echo "${{ secrets.GITHUB_TOKEN }}" | skopeo login --username "${{ github.actor }}" --password-stdin ghcr.io
+          
+          # 2. 登录阿里云 (使用你的 Secret)
+          echo "${{ secrets.ALIYUN_PASSWORD }}" | skopeo login --username "${{ secrets.ALIYUN_USERNAME }}" --password-stdin ${{ secrets.ALIYUN_REGISTRY }}
+
       - name: Sync Image using Skopeo
         run: |
-          # 核心修正：正确的 GitHub 社区镜像路径
-          # 注意：组织名是 iic-osic-tools，镜像名也是 iic-osic-tools
-          SOURCE_IMAGE="docker://ghcr.io/iic-osic-tools/iic-osic-tools:latest"
-          
-          # 你的阿里云目标地址 (请再次确认这个地址正确)
+          # 修正后的官方路径
+          SOURCE_IMAGE="docker://ghcr.io/efabless/iic-osic-tools:latest"
           TARGET_IMAGE="docker://${{ secrets.ALIYUN_REGISTRY }}/lna-1/lna-design1:latest"
           
-          echo "Starting sync from GHCR community mirror to Aliyun..."
-          
-          # 使用 skopeo 强制同步
-          # 增加 --command-timeout 确保大文件传输不掉线
-          skopeo copy --command-timeout 30m --src-no-creds \
-          --dest-creds "${{ secrets.ALIYUN_USERNAME }}:${{ secrets.ALIYUN_PASSWORD }}" \
-          $SOURCE_IMAGE $TARGET_IMAGE
+          echo "Starting robust sync..."
+          skopeo copy --command-timeout 60m $SOURCE_IMAGE $TARGET_IMAGE
